@@ -301,7 +301,7 @@ function popdisplay(d::AbstractDisplay)
 end
 function reinit_displays()
     empty!(displays)
-    pushdisplay(TextDisplay(stdout))
+    pushdisplay(TextDisplay(taskstdout[]))
 end
 
 xdisplayable(D::AbstractDisplay, @nospecialize args...) = applicable(display, D, args...)

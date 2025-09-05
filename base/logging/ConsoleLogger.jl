@@ -134,7 +134,7 @@ function handle_message(logger::ConsoleLogger, level::LogLevel, message, _module
     end
     stream::IO = logger.stream
     if !(isopen(stream)::Bool)
-        stream = stderr
+        stream = taskstderr[]
     end
     dsize = Base.displaysize_(stream)::Tuple{Int,Int}
     nkwargs = length(kwargs)::Int

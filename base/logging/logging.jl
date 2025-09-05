@@ -719,7 +719,7 @@ function handle_message(logger::SimpleLogger, level::LogLevel, message, _module,
     b = take!(buf)
     @lock logger.lock begin
         if !(isopen(stream)::Bool)
-            stream = stderr
+            stream = taskstderr[]
         end
         write(stream, b)
     end

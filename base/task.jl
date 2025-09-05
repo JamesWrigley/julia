@@ -727,7 +727,7 @@ Stacktrace:
 function errormonitor(t::Task)
     t2 = Task() do
         if istaskfailed(t)
-            local errs = stderr
+            local errs = taskstderr[]
             try # try to display the failure atomically
                 errio = IOContext(PipeBuffer(), errs::IO)
                 emphasize(errio, "Unhandled Task ")

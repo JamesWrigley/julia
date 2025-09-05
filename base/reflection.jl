@@ -915,7 +915,7 @@ function print_statement_costs(io::IO, @nospecialize(tt::Type);
     end
 end
 
-print_statement_costs(args...; kwargs...) = print_statement_costs(stdout, args...; kwargs...)
+print_statement_costs(args...; kwargs...) = print_statement_costs(taskstdout[], args...; kwargs...)
 
 function _which(@nospecialize(tt::Type);
     method_table #=::Union{Nothing,Core.MethodTable,Compiler.MethodTableView}=# =nothing,

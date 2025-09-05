@@ -351,7 +351,7 @@ spawn_opts_inherit(in::Redirectable=RawFD(0), out::Redirectable=RawFD(1), err::R
 
 function eachline(cmd::AbstractCmd; keep::Bool=false)
     out = PipeEndpoint()
-    processes = _spawn(cmd, Redirectable[devnull, out, stderr])
+    processes = _spawn(cmd, Redirectable[devnull, out, taskstderr[]])
     # if the user consumes all the data, also check process exit status for success
     ondone = () -> (success(processes) || pipeline_error(processes); nothing)
     return EachLine(out, keep=keep, ondone=ondone)::EachLine
@@ -399,20 +399,20 @@ function open(cmds::AbstractCmd, stdio::Redirectable=devnull; write::Bool=false,
         stdio === devnull || throw(ArgumentError("no stream can be specified for `stdio` in read-write mode"))
         in = PipeEndpoint()
         out = PipeEndpoint()
-        processes = _spawn(cmds, Redirectable[in, out, stderr])
+        processes = _spawn(cmds, Redirectable[in, out, taskstderr[]])
         processes.in = in
         processes.out = out
     elseif read
         out = PipeEndpoint()
-        processes = _spawn(cmds, Redirectable[stdio, out, stderr])
+        processes = _spawn(cmds, Redirectable[stdio, out, taskstderr[]])
         processes.out = out
     elseif write
         in = PipeEndpoint()
-        processes = _spawn(cmds, Redirectable[in, stdio, stderr])
+        processes = _spawn(cmds, Redirectable[in, stdio, taskstderr[]])
         processes.in = in
     else
         stdio === devnull || throw(ArgumentError("no stream can be specified for `stdio` in no-access mode"))
-        processes = _spawn(cmds, Redirectable[devnull, devnull, stderr])
+        processes = _spawn(cmds, Redirectable[devnull, devnull, taskstderr[]])
     end
     return processes
 end

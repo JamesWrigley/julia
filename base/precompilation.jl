@@ -478,7 +478,7 @@ function precompilepkgs(pkgs::Union{Vector{String}, Vector{PkgId}}=String[];
                         timing::Bool = false,
                         _from_loading::Bool=false,
                         configs::Union{Config,Vector{Config}}=(``=>Base.CacheFlags()),
-                        io::IO=stderr,
+                        io::IO=taskstderr[],
                         # asking for timing disables fancy mode, as timing is shown in non-fancy mode
                         fancyprint::Bool = can_fancyprint(io) && !timing,
                         manifest::Bool=false,

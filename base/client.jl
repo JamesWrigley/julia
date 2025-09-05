@@ -110,7 +110,7 @@ function display_error(io::IO, stack::ExceptionStack)
     show_exception_stack(IOContext(io, :limit => true), stack)
     println(io)
 end
-display_error(stack::ExceptionStack) = display_error(stderr, stack)
+display_error(stack::ExceptionStack) = display_error(taskstderr[], stack)
 
 # these forms are depended on by packages outside Julia
 function display_error(io::IO, er, bt)
@@ -118,7 +118,7 @@ function display_error(io::IO, er, bt)
     showerror(IOContext(io, :limit => true), er, bt, backtrace = bt!==nothing)
     println(io)
 end
-display_error(er, bt=nothing) = display_error(stderr, er, bt)
+display_error(er, bt=nothing) = display_error(taskstderr[], er, bt)
 
 # N.B.: Any functions starting with __repl_entry cut off backtraces when printing in the REPL.
 __repl_entry_client_lower(mod::Module, @nospecialize(ast)) = Meta.lower(mod, ast)
@@ -127,7 +127,7 @@ __repl_entry_client_eval(mod::Module, @nospecialize(ast)) = Core.eval(mod, ast)
 function eval_user_input(errio, @nospecialize(ast), show_value::Bool)
     errcount = 0
     lasterr = nothing
-    have_color = get(stdout, :color, false)::Bool
+    have_color = get(taskstdout[], :color, false)::Bool
     while true
         try
             if have_color
@@ -169,7 +169,7 @@ function eval_user_input(errio, @nospecialize(ast), show_value::Bool)
             end
         end
     end
-    isa(stdin, TTY) && println()
+    isa(taskstdin[], TTY) && println()
     nothing
 end
 
@@ -271,7 +271,7 @@ function exec_options(opts)
         end
     end
 
-    interactiveinput = (repl || is_interactive::Bool) && isa(stdin, TTY)
+    interactiveinput = (repl || is_interactive::Bool) && isa(taskstdin[], TTY)
     is_interactive::Bool |= interactiveinput
 
     # load ~/.julia/config/startup.jl file
@@ -325,7 +325,7 @@ function exec_options(opts)
         end
         try
             if PROGRAM_FILE == "-"
-                include_string(Main, read(stdin, String), "stdin")
+                include_string(Main, read(taskstdin[], String), "stdin")
             else
                 include(Main, PROGRAM_FILE)
             end
@@ -389,8 +389,8 @@ function __atreplinit(repl)
         try
             f(repl)
         catch err
-            showerror(stderr, err)
-            println(stderr)
+            showerror(taskstderr[], err)
+            println(taskstderr[])
         end
     end
 end
@@ -426,7 +426,7 @@ global active_repl::Any
 global active_repl_backend = nothing
 
 function run_fallback_repl(interactive::Bool)
-    let input = stdin
+    let input = taskstdin[]
         if isa(input, File) || isa(input, IOStream)
             # for files, we can slurp in the whole thing at once
             ex = parse_input_line(read(input, String))
@@ -434,17 +434,17 @@ function run_fallback_repl(interactive::Bool)
                 # if we get back a list of statements, eval them sequentially
                 # as if we had parsed them sequentially
                 for stmt in ex.args
-                    eval_user_input(stderr, stmt, true)
+                    eval_user_input(taskstderr[], stmt, true)
                 end
                 body = ex.args
             else
-                eval_user_input(stderr, ex, true)
+                eval_user_input(taskstderr[], ex, true)
             end
         else
             while true
                 if interactive
                     print("julia> ")
-                    flush(stdout)
+                    flush(taskstdout[])
                 end
                 eof(input) && break
                 try
@@ -457,7 +457,7 @@ function run_fallback_repl(interactive::Bool)
                             break
                         end
                     end
-                    eval_user_input(stderr, ex, true)
+                    eval_user_input(taskstderr[], ex, true)
                 catch err
                     isa(err, InterruptException) ? print("\n\n") : rethrow()
                 end
@@ -469,13 +469,13 @@ end
 
 function run_std_repl(REPL::Module, quiet::Bool, banner::Symbol, history_file::Bool)
     term_env = get(ENV, "TERM", @static Sys.iswindows() ? "" : "dumb")
-    term = REPL.Terminals.TTYTerminal(term_env, stdin, stdout, stderr)
+    term = REPL.Terminals.TTYTerminal(term_env, taskstdin[], taskstdout[], taskstderr[])
     banner == :no || REPL.banner(term, short=banner==:short)
     if term.term_type == "dumb"
         repl = REPL.BasicREPL(term)
         quiet || @warn "Terminal not fully functional"
     else
-        repl = REPL.LineEditREPL(term, get(stdout, :color, false), true)
+        repl = REPL.LineEditREPL(term, get(taskstdout[], :color, false), true)
         repl.history_file = history_file
     end
     # Make sure any displays pushed in .julia/config/startup.jl ends up above the
@@ -584,7 +584,7 @@ function _start()
         ret = Cint(1)
         invokelatest(display_error, scrub_repl_backtrace(current_exceptions()))
     end
-    if is_interactive && get(stdout, :color, false)
+    if is_interactive && get(taskstdout[], :color, false)
         print(color_normal)
     end
     return ret
@@ -592,7 +592,7 @@ end
 
 function repl_main(_)
     opts = Base.JLOptions()
-    interactiveinput = isa(stdin, Base.TTY)
+    interactiveinput = isa(taskstdin[], Base.TTY)
     b = opts.banner
     auto = b == -1
     banner = b == 0 || (auto && !interactiveinput) ? :no  :

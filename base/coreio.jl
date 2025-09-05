@@ -1,16 +1,11 @@
 # This file is a part of Julia. License is MIT: https://julialang.org/license
 
-print(x) = print(stdout, x)
-print(x1, x2) = print(stdout, x1, x2)
-println(x) = print(stdout, x, "\n")
-println(x1, x2) = print(stdout, x1, x2, "\n")
 
-print(xs...)   = print(stdout, xs...)
-println(xs...) = print(stdout, xs..., "\n")  # fewer allocations than `println(stdout, xs...)`
-println(io::IO) = print(io, "\n")
-
+function print end
 function show end
 function repr end
+
+println(io::IO) = print(io, "\n")
 
 struct DevNull <: IO end
 const devnull = DevNull()

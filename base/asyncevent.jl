@@ -369,8 +369,8 @@ function Timer(cb::Function, timeout; spawn::Union{Nothing,Bool}=nothing, kwargs
             try
                 cb(timer)
             catch err
-                write(stderr, "Error in Timer:\n")
-                showerror(stderr, err, catch_backtrace())
+                write(taskstderr[], "Error in Timer:\n")
+                showerror(taskstderr[], err, catch_backtrace())
                 return
             end
             isopen(timer) || return

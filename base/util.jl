@@ -141,7 +141,7 @@ See also [`print`](@ref), [`println`](@ref), [`show`](@ref).
 @constprop :none printstyled(io::IO, msg...; bold::Bool=false, italic::Bool=false, underline::Bool=false, blink::Bool=false, reverse::Bool=false, hidden::Bool=false, color::Union{Int,Symbol}=:normal) =
     with_output_color(print, color, io, msg...; bold=bold, italic=italic, underline=underline, blink=blink, reverse=reverse, hidden=hidden)
 @constprop :none printstyled(msg...; bold::Bool=false, italic::Bool=false, underline::Bool=false, blink::Bool=false, reverse::Bool=false, hidden::Bool=false, color::Union{Int,Symbol}=:normal) =
-    printstyled(stdout, msg...; bold=bold, italic=italic, underline=underline, blink=blink, reverse=reverse, hidden=hidden, color=color)
+    printstyled(taskstdout[], msg...; bold=bold, italic=italic, underline=underline, blink=blink, reverse=reverse, hidden=hidden, color=color)
 
 """
     Base.julia_cmd(juliapath=joinpath(Sys.BINDIR, julia_exename()); cpu_target::Union{Nothing,String}=nothing)
@@ -305,7 +305,7 @@ function _getch()
     @static if Sys.iswindows()
         return UInt8(ccall(:_getch, Cint, ()))
     else
-        return read(stdin, UInt8)
+        return read(taskstdin[], UInt8)
     end
 end
 
@@ -331,7 +331,7 @@ end
 cfmakeraw(termios) = ccall(:cfmakeraw, Cvoid, (Ptr{Cvoid},), termios)
 
 function with_raw_tty(f::Function, input::TTY)
-    input === stdin || throw(ArgumentError("with_raw_tty only works for stdin"))
+    input === taskstdin[] || throw(ArgumentError("with_raw_tty only works for stdin"))
     fd = RawFD(0)
 
     # If we're on windows, we do nothing, as we have access to `_getch()` quite easily
@@ -357,8 +357,8 @@ function with_raw_tty(f::Function, input::TTY)
 end
 
 function getpass(input::TTY, output::IO, prompt::AbstractString; with_suffix::Bool=true)
-    input === stdin || throw(ArgumentError("getpass only works for stdin"))
-    with_raw_tty(stdin) do
+    input === taskstdin[] || throw(ArgumentError("getpass only works for stdin"))
+    with_raw_tty(taskstdin[]) do
         print(output, prompt)
         with_suffix && print(output, ": ")
         flush(output)
@@ -383,7 +383,7 @@ end
 
 # allow new getpass methods to be defined if stdin has been
 # redirected to some custom stream, e.g. in IJulia.
-getpass(prompt::AbstractString; with_suffix::Bool=true) = getpass(stdin, stdout, prompt; with_suffix)
+getpass(prompt::AbstractString; with_suffix::Bool=true) = getpass(taskstdin[], taskstdout[], prompt; with_suffix)
 
 """
     prompt(message; default="")::Union{String, Nothing}
@@ -415,7 +415,7 @@ end
 
 # allow new prompt methods to be defined if stdin has been
 # redirected to some custom stream, e.g. in IJulia.
-prompt(message::AbstractString; default::AbstractString="") = prompt(stdin, stdout, message, default=default)
+prompt(message::AbstractString; default::AbstractString="") = prompt(taskstdin[], taskstdout[], message, default=default)
 
 # Windows authentication prompt
 if Sys.iswindows()

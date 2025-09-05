@@ -160,6 +160,18 @@ include("weakkeydict.jl")
 # ScopedValues
 include("scopedvalues.jl")
 
+const taskstdin =  ScopedValues.LookupScopedValue(() -> stdin)
+const taskstdout = ScopedValues.LookupScopedValue(() -> stdout)
+const taskstderr = ScopedValues.LookupScopedValue(() -> stderr)
+
+print(x) = print(taskstdout[], x)
+print(x1, x2) = print(taskstdout[], x1, x2)
+println(x) = print(taskstdout[], x, "\n")
+println(x1, x2) = print(taskstdout[], x1, x2, "\n")
+
+print(xs...)   = print(taskstdout[], xs...)
+println(xs...) = print(taskstdout[], xs..., "\n")  # fewer allocations than `println(stdout, xs...)`
+
 # Logging
 include("logging/logging.jl")
 using .CoreLogging
@@ -335,9 +347,9 @@ function profile_printing_listener(cond::AsyncCondition)
             profile = @something(profile, require_stdlib(PkgId(UUID("9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"), "Profile")))::Module
             invokelatest(profile.peek_report[])
             if get_bool_env("JULIA_PROFILE_PEEK_HEAP_SNAPSHOT", false) === true
-                println(stderr, "Saving heap snapshot...")
+                println(taskstderr[], "Saving heap snapshot...")
                 fname = invokelatest(profile.take_heap_snapshot)
-                println(stderr, "Heap snapshot saved to `$(fname)`")
+                println(taskstderr[], "Heap snapshot saved to `$(fname)`")
             end
         end
     catch ex

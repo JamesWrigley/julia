@@ -464,9 +464,9 @@ function _atexit(exitcode::Cint)
                 f()
             end
         catch ex
-            showerror(stderr, ex)
-            show_backtrace(stderr, catch_backtrace())
-            println(stderr)
+            showerror(taskstderr[], ex)
+            show_backtrace(taskstderr[], catch_backtrace())
+            println(taskstderr[])
         end
     end
 end
@@ -484,9 +484,9 @@ function _postoutput()
         try
             f()
         catch ex
-            showerror(stderr, ex)
-            show_backtrace(stderr, catch_backtrace())
-            println(stderr)
+            showerror(taskstderr[], ex)
+            show_backtrace(taskstderr[], catch_backtrace())
+            println(taskstderr[])
         end
     end
 end

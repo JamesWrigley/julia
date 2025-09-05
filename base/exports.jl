@@ -194,6 +194,9 @@ export
     stderr,
     stdin,
     stdout,
+    taskstderr,
+    taskstdin,
+    taskstdout,
     VERSION,
     devnull,
 

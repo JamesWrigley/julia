@@ -228,7 +228,7 @@ julia> Meta.show_sexpr(:(f(x, g(y,z))))
 (:call, :f, :x, (:call, :g, :y, :z))
 ```
 """
-show_sexpr(ex) = show_sexpr(stdout, ex)
+show_sexpr(ex) = show_sexpr(taskstdout[], ex)
 show_sexpr(io::IO, ex) = show_sexpr(io, ex, 0)
 show_sexpr(io::IO, ex, indent::Int) = show(io, ex)
 
