@@ -52,6 +52,14 @@ mutable struct LazyScopedValue{T} <: AbstractScopedValue{T}
     const getdefault::OncePerProcess{T}
 end
 
+mutable struct LookupScopedValue{T, F} <: AbstractScopedValue{T}
+    const f::F
+
+    function LookupScopedValue(f::F) where F
+        T = Base.promote_op(f)
+        new{T, F}(f)
+    end
+end
 
 """
     ScopedValue(x)
@@ -102,9 +110,11 @@ Base.eltype(::AbstractScopedValue{T}) where {T} = T
 
 hasdefault(val::ScopedValue) = val.hasdefault
 hasdefault(val::LazyScopedValue) = true
+hasdefault(val::LookupScopedValue) = true
 
 getdefault(val::ScopedValue) = val.hasdefault ? val.default : throw(KeyError(val))
 getdefault(val::LazyScopedValue) = val.getdefault()
+getdefault(val::LookupScopedValue) = val.f()
 
 """
     isassigned(val::ScopedValue)
