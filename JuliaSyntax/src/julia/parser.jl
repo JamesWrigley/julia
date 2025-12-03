@@ -1281,10 +1281,13 @@ function parse_unary(ps::ParseState)
                     is_paren_call=is_paren_call,
                     is_block=!is_paren_call && num_semis > 0)
         end
+        is_paren_call = opts.is_paren_call::Bool
+        is_block = opts.is_block::Bool
+        delim_flags = opts.delim_flags::RawFlags
 
         # The precedence between unary + and any following infix ^ depends on
         # whether the parens are a function call or not
-        if opts.is_paren_call
+        if is_paren_call
             if space_before_paren
                 # Whitespace not allowed before prefix function call bracket
                 # + (a,b)   ==> (call + (error) a b)
@@ -1304,17 +1307,17 @@ function parse_unary(ps::ParseState)
             # +(a,b)(x)^2  ==>  (call-i (call (call + a b) x) ^ 2)
             if is_type_operator(op_t, op_dotted)
                 # <:(a,)  ==>  (<: a)
-                emit(ps, mark, op_k, opts.delim_flags)
+                emit(ps, mark, op_k, delim_flags)
                 reset_node!(ps, op_pos, flags=TRIVIA_FLAG, kind=op_k)
             else
-                emit(ps, mark, K"call", opts.delim_flags)
+                emit(ps, mark, K"call", delim_flags)
             end
             parse_call_chain(ps, mark)
             parse_factor_with_initial_ex(ps, mark)
         else
             # Unary function calls with brackets as grouping, not an arglist
             # .+(a)    ==>  (dotcall-pre + (parens a))
-            if opts.is_block
+            if is_block
                 # +(a;b)   ==>  (call-pre + (block-p a b))
                 emit(ps, mark_before_paren, K"block", PARENS_FLAG)
             else
@@ -1595,9 +1598,10 @@ function parse_call_chain(ps::ParseState, mark, is_macrocall=false)
                 # f(x) do y body end  ==>  (call f x (do (tuple y) (block body)))
                 parse_do(ps)
             end
+            delim_flags = opts.delim_flags::RawFlags
             emit(ps, mark, is_macrocall ? K"macrocall" : K"call",
                  # TODO: Add PARENS_FLAG to all calls which use them?
-                 (is_macrocall ? PARENS_FLAG : EMPTY_FLAGS)|opts.delim_flags)
+                 (is_macrocall ? PARENS_FLAG : EMPTY_FLAGS)|delim_flags)
             if is_macrocall
                 # @x(a, b)   ==>  (macrocall-p (macro_name x) a b)
                 # A.@x(y)    ==>  (macrocall-p (. A (macro_name x)) y)
@@ -1687,7 +1691,8 @@ function parse_call_chain(ps::ParseState, mark, is_macrocall=false)
                 bump_disallowed_space(ps)
                 bump(ps, TRIVIA_FLAG)
                 opts = parse_call_arglist(ps, K")")
-                emit(ps, mark, K"dotcall", opts.delim_flags)
+                delim_flags = opts.delim_flags::RawFlags
+                emit(ps, mark, K"dotcall", delim_flags)
             elseif k == K":"
                 # A.:+  ==>  (. A (quote-: +))
                 # A.: +  ==>  (. A (error-t) (quote-: +))
@@ -1778,18 +1783,19 @@ function parse_call_chain(ps::ParseState, mark, is_macrocall=false)
             bump_disallowed_space(ps)
             bump(ps, TRIVIA_FLAG)
             opts = parse_call_arglist(ps, K"}")
+            delim_flags = opts.delim_flags::RawFlags
             if is_macrocall
                 # @S{a,b} ==> (macrocall (macro_name S) (braces a b))
                 # A.@S{a}  ==> (macrocall (. A (macro_name S)) (braces a))
                 # @S{a}.b  ==> (. (macrocall (macro_name S) (braces a)) b)
-                emit(ps, m, K"braces", opts.delim_flags)
+                emit(ps, m, K"braces", delim_flags)
                 emit(ps, mark, K"macrocall")
                 min_supported_version(v"1.6", ps, mark, "macro call without space before `{}`")
                 is_macrocall = false
                 macro_atname_range = nothing
             else
                 # S{a,b} ==> (curly S a b)
-                emit(ps, mark, K"curly", opts.delim_flags)
+                emit(ps, mark, K"curly", delim_flags)
             end
         elseif k in KSet" \" \"\"\" ` ``` " &&
                 !preceding_whitespace(t) && maybe_strmac &&
@@ -2230,9 +2236,12 @@ function parse_function_signature(ps::ParseState, is_function::Bool)
                         needs_parse_call      = _needs_parse_call,
                         maybe_grouping_parens = _maybe_grouping_parens)
             end
-            is_anon_func = opts.is_anon_func
-            parsed_call = opts.parsed_call
-            needs_parse_call = opts.needs_parse_call
+            is_anon_func = opts.is_anon_func::Bool
+            parsed_call = opts.parsed_call::Bool
+            needs_parse_call = opts.needs_parse_call::Bool
+            maybe_grouping_parens = opts.maybe_grouping_parens::Bool
+            delim_flags = opts.delim_flags::RawFlags
+
             if is_anon_func
                 # function (x) body end ==>  (function (tuple-p x) (block body))
                 # function (x::f()) end ==>  (function (tuple-p (::-i x (call f))) (block))
@@ -2240,9 +2249,9 @@ function parse_function_signature(ps::ParseState, is_function::Bool)
                 # function (x=1) end    ==>  (function (tuple-p (= x 1)) (block))
                 # function (;x=1) end   ==>  (function (tuple-p (parameters (= x 1))) (block))
                 # function (f(x),) end  ==>  (function (tuple-p (call f x)) (block))
-                ambiguous_parens = opts.maybe_grouping_parens &&
+                ambiguous_parens = maybe_grouping_parens &&
                                    peek_behind(ps).kind in KSet"macrocall $"
-                emit(ps, mark, K"tuple", PARENS_FLAG|opts.delim_flags)
+                emit(ps, mark, K"tuple", PARENS_FLAG|delim_flags)
                 if ambiguous_parens
                     # Got something like `(@f(x))`. Is it anon `(@f(x),)` or named sig `@f(x)` ??
                     emit(ps, mark, K"error", error="Ambiguous signature. Add a trailing comma if this is a 1-argument anonymous function; remove parentheses if this is a macro call acting as function signature.")
@@ -2781,8 +2790,9 @@ function parse_vect(ps::ParseState, closer, prefix_trailing_comma)
         return (needs_parameters=true,
                 num_subexprs=num_subexprs)
     end
-    delim_flags = opts.delim_flags
-    if opts.num_subexprs == 0 && prefix_trailing_comma
+    delim_flags = opts.delim_flags::RawFlags
+    num_subexprs = opts.num_subexprs::Int
+    if num_subexprs == 0 && prefix_trailing_comma
         delim_flags |= TRAILING_COMMA_FLAG
     end
     return (K"vect", delim_flags)
@@ -3138,7 +3148,11 @@ function parse_paren(ps::ParseState, check_identifiers=true, has_unary_prefix=fa
                     is_tuple=is_tuple,
                     is_block=num_semis > 0)
         end
-        if opts.is_tuple
+        is_tuple = opts.is_tuple::Bool
+        is_block = opts.is_block::Bool
+        delim_flags = opts.delim_flags::RawFlags
+
+        if is_tuple
             # Tuple syntax with commas
             # (x,)        ==>  (tuple-p x)
             # (x,y)       ==>  (tuple-p x y)
@@ -3154,8 +3168,8 @@ function parse_paren(ps::ParseState, check_identifiers=true, has_unary_prefix=fa
             # (; a=1; b=2)    ==> (tuple-p (parameters (= a 1)) (parameters (= b 2)))
             # (a; b; c,d)     ==> (tuple-p a (parameters b) (parameters c d))
             # (a=1, b=2; c=3) ==> (tuple-p (= a 1) (= b 2) (parameters (= c 3)))
-            emit(ps, mark, K"tuple", PARENS_FLAG|opts.delim_flags)
-        elseif opts.is_block
+            emit(ps, mark, K"tuple", PARENS_FLAG|delim_flags)
+        elseif is_block
             # Blocks
             # (;;)        ==>  (block-p)
             # (a=1;)      ==>  (block-p (= a 1))
@@ -3175,6 +3189,11 @@ end
 
 # Handle bracketed syntax inside any of () [] or {} where there's a mixture
 # of commas and semicolon delimiters.
+#
+# *WARNING*: the return type of this function is a type-unstable
+# NamedTuple. When accessing the fields of the tuple make sure to type-assert
+# them to avoid making JuliaSyntax vulnerable to invalidations (see usage
+# in this file for examples).
 #
 # For parentheses this is tricky because there's various cases to disambiguate,
 # depending on outside context and the content of the brackets (number of
@@ -3255,9 +3274,10 @@ function parse_brackets(after_parse::Function,
     if !isnothing(param_start) && position(ps) != param_start
         push!(params_positions, emit(ps, param_start, K"TOMBSTONE"))
     end
-    opts = after_parse(had_commas, had_splat, num_semis, num_subexprs)
+    opts = after_parse(had_commas, had_splat, num_semis, num_subexprs)::NamedTuple
+    needs_parameters = opts.needs_parameters::Bool
     # Emit nested parameter nodes if necessary
-    if opts.needs_parameters
+    if needs_parameters
         for pos in params_positions
             reset_node!(ps, pos, kind=K"parameters")
         end
@@ -3316,7 +3336,9 @@ function parse_string(ps::ParseState, raw::Bool)
                     return (needs_parameters=false,
                             simple_interp=!had_commas && num_semis == 0 && num_subexprs == 1)
                 end
-                if !opts.simple_interp || peek_behind(ps, skip_parens=false).kind == K"generator"
+                simple_interp = opts.simple_interp::Bool
+
+                if !simple_interp || peek_behind(ps, skip_parens=false).kind == K"generator"
                     # "$(x,y)" ==> (string (parens (error x y)))
                     emit(ps, m, K"error", error="invalid interpolation syntax")
                 end
