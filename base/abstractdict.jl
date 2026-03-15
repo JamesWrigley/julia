@@ -406,10 +406,10 @@ promoteK(K) = K
 promoteV(V) = V
 promoteK(K, d, ds...) = promoteK(promote_type(K, keytype(d)), ds...)
 promoteV(V, d, ds...) = promoteV(promote_type(V, valtype(d)), ds...)
-function _typeddict(d::AbstractDict, others::AbstractDict...)
+function _typeddict(d::T, others::AbstractDict...) where {T <: AbstractDict}
     K = promoteK(keytype(d), others...)
     V = promoteV(valtype(d), others...)
-    Dict{K,V}(d)
+    T.name.wrapper{K, V}(d)
 end
 
 """

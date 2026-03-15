@@ -1349,8 +1349,8 @@ end
     @test d == IdDict(1 => 6, 2 => 5, 3 => 10)
     @inferred mergewith(+, d1, d2, d3)
     d = mergewith(+, d1, d2, d3)
-    @test d isa Dict{Int, Float64}
-    @test d == Dict(1 => 6, 2 => 5, 3 => 10)
+    @test d isa IdDict{Int, Float64}
+    @test d == IdDict(1 => 6, 2 => 5, 3 => 10)
 end
 
 @testset "misc error/io" begin
