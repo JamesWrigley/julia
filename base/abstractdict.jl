@@ -232,7 +232,7 @@ function merge!(d::AbstractDict, others::AbstractDict...)
     end
     return d
 end
-typeof(merge!).name.max_methods = UInt8(1)
+typeof(merge!).name.concrete_only = true
 
 """
     mergewith!(combine, d::AbstractDict, others::AbstractDict...) -> d
@@ -283,7 +283,7 @@ Dict{Int64, Int64} with 3 entries:
 function mergewith!(combine, d::AbstractDict, others::AbstractDict...)
     foldl(mergewith!(combine), others; init = d)
 end
-typeof(mergewith!).name.max_methods = UInt8(1)
+typeof(mergewith!).name.concrete_only = true
 
 function mergewith!(combine, d1::AbstractDict, d2::AbstractDict)
     for (k, v) in d2
@@ -360,7 +360,7 @@ Dict{String, Float64} with 3 entries:
 """
 merge(d::AbstractDict, others::AbstractDict...) =
     merge!(_typeddict(d, others...), others...)
-typeof(merge).name.max_methods = UInt8(1)
+typeof(merge).name.concrete_only = true
 
 """
     mergewith(combine, d::AbstractDict, others::AbstractDict...)
@@ -404,7 +404,7 @@ Dict{Any, Any} with 1 entry:
 mergewith(combine, d::AbstractDict, others::AbstractDict...) =
     mergewith!(combine, _typeddict(d, others...), others...)
 mergewith(combine) = (args...) -> mergewith(combine, args...)
-typeof(mergewith).name.max_methods = UInt8(1)
+typeof(mergewith).name.concrete_only = true
 
 promoteK(K) = K
 promoteV(V) = V

@@ -1318,6 +1318,16 @@ function get_max_methods_for_func(@nospecialize(f))
     end
     return nothing
 end
+
+# whether `f` is marked to only allow inference of call sites with fully concrete
+# argument types (`Core.TypeName.concrete_only`); `f === nothing` means the callee
+# value is unknown
+function is_concrete_only(@nospecialize(f))
+    if f !== nothing
+        return typeof(f).name.concrete_only
+    end
+    return false
+end
 get_max_methods_for_module(sv::AbsIntState) = get_max_methods_for_module(frame_module(sv))
 function get_max_methods_for_module(mod::Module)
     max_methods = ccall(:jl_get_module_max_methods, Cint, (Any,), mod) % Int
